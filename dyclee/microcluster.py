@@ -8,7 +8,7 @@ class MicroCluster:
     Microcluster as defined in DyClee Distance-based clsutering
     Containsn the characteristic feature vector
     """
-    def __init__(self, first_sample: np.ndarray, hyperboxSizePerFeature: np.ndarray, decay_function= None,label= -1):
+    def __init__(self, first_sample: np.ndarray, hyperboxSizePerFeature: np.ndarray, decay_function= None,label: int = -1):
         self.initCF(first_sample)
         self.hyperboxSizePerFeature = hyperboxSizePerFeature
         self.label = label
@@ -71,7 +71,9 @@ class MicroCluster:
         return True
 
     def unsetLabel (self):
-        """Make the label None"""
         self.label = None
+    
+    def setLabel (self, label: int):
+        self.label = label
 
  

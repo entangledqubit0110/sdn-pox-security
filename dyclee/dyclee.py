@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Iterable
+from typing import List
 
 from microcluster import MicroCluster
 
@@ -55,7 +55,7 @@ class DyClee:
 
 
     
-    def getReachableMicroClusters (self, muCList: Iterable[MicroCluster], sample:np.ndarray):
+    def getReachableMicroClusters (self, muCList: List[MicroCluster], sample:np.ndarray):
         """returns a list of microclsuter from muCList that are reachable from sample"""
         rc = list()
         for muC in muCList:
@@ -63,7 +63,7 @@ class DyClee:
                 rc.append(muC)
         return rc
 
-    def getClosest (self, muCList: Iterable[MicroCluster], sample: np.ndarray):
+    def getClosest (self, muCList: List[MicroCluster], sample: np.ndarray):
         """given a list of microclusters, find the closest from a sample (in terms of manhattan distance)"""
         minDist = None
         closest = None
@@ -86,14 +86,32 @@ class DyClee:
         # update A and O lists
         self.updateLists()
 
-        # group all microclusters
+        # reset labels
+        for muC in self.AList:
+            muC.unsetLabel()
+        for muC in self.OList:
+            muC.unsetLabel()
+
+        # get dense clusters
+        DMC = self.getDenseMicroClusters()
+        visited = list()
+        cid = 0     # cluster id
+
+        # density based clustering loop
+        for muC in DMC:
+            if muC not in visited:
+                visited.append(muC)
+                muC.setLabel(cid)
+
+                # neighbors = muC.getNeighbors() : TODO
+                
 
 
-    def getMeanDensity (self, muCList: Iterable[MicroCluster]):
+    def getMeanDensity (self, muCList: List[MicroCluster]):
         """Return mean of densities of microclusters"""
         return np.mean([muC.getDensity() for muC in muCList])
     
-    def getMedianDensity (self, muCList:Iterable[MicroCluster]):
+    def getMedianDensity (self, muCList:List[MicroCluster]):
         """Return median of densities of microclusters"""
         return np.median([muC.getDensity() for muC in muCList])
 
@@ -108,6 +126,14 @@ class DyClee:
     def isOutlier (self, muC: MicroCluster):
         d = muC.getDensity()
         return ((d < self.meanDensity) and (d < self.medianDensity))
+
+    def getDenseMicroClusters (self):
+        """Return dense microclsuters from A-List"""
+        dense = list()
+        for muC in self.AList:
+            if self.isDense(muC):
+                dense.append(muC)
+        return dense
 
     def updateLists (self):
         """Update the A-list and O-list"""
