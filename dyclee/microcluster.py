@@ -8,11 +8,11 @@ class MicroCluster:
     Microcluster as defined in DyClee Distance-based clsutering
     Containsn the characteristic feature vector
     """
-    def __init__(self, first_sample, hyperboxSizePerFeature, label= None):
+    def __init__(self, first_sample: np.ndarray, hyperboxSizePerFeature: np.ndarray, decay_function= None,label= -1):
         self.initCF(first_sample)
-        assert isinstance(hyperboxSizePerFeature, np.ndarray), "Invalid input format, expected numpy array"
         self.hyperboxSizePerFeature = hyperboxSizePerFeature
         self.label = label
+        self.decay_fn = decay_function
     
 
     def getDensity (self):
@@ -25,15 +25,14 @@ class MicroCluster:
         return self.cf.LS/self.cf.n
 
     
-    def initCF (self, sample):
+    def initCF (self, sample: np.ndarray):
         """Add first sample of the microcluster"""
-        assert isinstance(sample, np.ndarray), "Sample must be in numpy array format"
         ls = sample
         ss = np.square(sample)
         now = time.time()
         self.cf = CF(n= 1, ls= ls, ss= ss, tl= now, ts= now)
     
-    def isReachable (self, sample):
+    def isReachable (self, sample: np.ndarray):
         """Check if this microcluster is reachable from sample"""
         assert isinstance(sample, np.ndarray), "Sample must be in numpy array format"
         diff = np.absolute(sample - self.getCenter())   # feature wise difference of center and given sample
@@ -43,24 +42,23 @@ class MicroCluster:
         else:
             return False
     
-    def insertSample (self, sample):
+    def insertSample (self, sample: np.ndarray):
         """Insert a new sample to the microcluster"""
         assert isinstance(sample, np.ndarray), "Sample must be in numpy array format"
-        self.cf.update(sample, time.time())
+        self.cf.update(sample, time.time(), self.decay_fn)
 
 
-    def getManhattanDistance (self, sample):
+    def getManhattanDistance (self, sample: np.ndarray):
         """Manhattan distance of microcluster from given sample"""
         assert isinstance(sample, np.ndarray), "Sample must be in numpy array format"
         diff = np.absolute(sample - self.getCenter())
         return np.sum(diff)
 
-    def isDirectlyConnected (self, mcluster, maxNonOverlaps):
+    def isDirectlyConnected (self, mcluster, maxNonOverlaps: int):
         """
         Check if directly connected to mcluster
         conditioned over overlaps on all but at most maxNonOverlaps dimensions
         """
-        assert isinstance(mcluster, MicroCluster), "Input is expected to be a MicroCluster"
         diff = np.absolute(mcluster.getCenter() - self.getCenter())
         nonOverlaps = 0
         for idx, d in enumerate(diff):
@@ -72,5 +70,8 @@ class MicroCluster:
         
         return True
 
+    def unsetLabel (self):
+        """Make the label None"""
+        self.label = None
 
  

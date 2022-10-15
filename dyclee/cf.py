@@ -2,22 +2,26 @@ import numpy as np
 
 class CF:
     """Characteristic feature"""
-    def __init__(self, n, ls, ss, tl, ts):
+    def __init__(self, n, ls: np.ndarray, ss: np.ndarray, tl, ts):
         self.n = n          # int, no of objects in the microcluster
 
-        assert isinstance(ls, np.ndarray), "LS must be of type numpy array"
-        assert isinstance(ss, np.ndarray), "SS must be of type numpy array"
         self.LS = ls        # vector, linear sum of each feature over all objects
         self.SS = ss        # vector, Squared sum of each feature over all objects
         
         self.tl = tl        # float, last object assign time
         self.ts = ts        # float, create time of microcluster
     
-    def update (self, sample, time):
+    def update (self, sample: np.ndarray, time, decay_function= None):
         """Update cf elements from sample"""
         assert isinstance(sample, np.ndarray), "Sample must be in numpy array format"
-        self.n += 1
-        self.LS = self.LS + sample
-        self.SS = self.SS + np.square(sample)
+        
+        if decay_function is None:
+            decay = 1
+        else:
+            decay = decay_function(time, self.tl)
+        
+        self.n = self.n*decay + 1
+        self.LS = self.LS*decay + sample
+        self.SS = self.SS*decay + np.square(sample)
         self.tl = time
 
