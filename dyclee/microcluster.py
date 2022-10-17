@@ -8,7 +8,7 @@ class MicroCluster:
     Microcluster as defined in DyClee Distance-based clsutering
     Containsn the characteristic feature vector
     """
-    def __init__(self, first_sample: np.ndarray, hyperboxSizePerFeature: np.ndarray, decay_function= None,label: int = -1):
+    def __init__(self, first_sample: np.ndarray, hyperboxSizePerFeature: np.ndarray, decay_function= None, label: int = -1):
         self.initCF(first_sample)
         self.hyperboxSizePerFeature = hyperboxSizePerFeature
         self.label = label
@@ -20,7 +20,7 @@ class MicroCluster:
         hypervolume = np.prod(self.hyperboxSizePerFeature)
         return self.cf.n/hypervolume
     
-    def getCenter (self):
+    def getCenter (self) -> np.ndarray:
         """Return center of microcluster"""
         return self.cf.LS/self.cf.n
 
@@ -34,23 +34,20 @@ class MicroCluster:
     
     def isReachable (self, sample: np.ndarray):
         """Check if this microcluster is reachable from sample"""
-        assert isinstance(sample, np.ndarray), "Sample must be in numpy array format"
         diff = np.absolute(sample - self.getCenter())   # feature wise difference of center and given sample
         max_idx = np.argmax(diff)                       # feature with max difference
-        if diff[max_idx] < (self.hyperboxSizePerFeature[max_idx]/2):
+        if diff[max_idx] < (self.hyperboxSizePerFeature[max_idx]):  # modified overlap removing factor of 1/2 from paper
             return True
         else:
             return False
     
     def insertSample (self, sample: np.ndarray):
         """Insert a new sample to the microcluster"""
-        assert isinstance(sample, np.ndarray), "Sample must be in numpy array format"
         self.cf.update(sample, time.time(), self.decay_fn)
 
 
     def getManhattanDistance (self, sample: np.ndarray):
         """Manhattan distance of microcluster from given sample"""
-        assert isinstance(sample, np.ndarray), "Sample must be in numpy array format"
         diff = np.absolute(sample - self.getCenter())
         return np.sum(diff)
 
@@ -69,9 +66,11 @@ class MicroCluster:
                 return False
         
         return True
+                
+
 
     def unsetLabel (self):
-        self.label = None
+        self.label = -1
     
     def setLabel (self, label: int):
         self.label = label

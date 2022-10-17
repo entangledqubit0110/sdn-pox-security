@@ -1,15 +1,18 @@
 import numpy as np
 from typing import List
+from sklearn.neighbors import KDTree
 
 from microcluster import MicroCluster
 
 class DyClee:
     """Implementation of DyClee Algorithm"""
-    def __init__(self, relativeSize: float, dataContext, forget_method= None):
+    def __init__(self, relativeSize: float, dataContext, forget_method= None, maxNonOverlaps= 0):
         self.relativeSize = relativeSize
         self.dataContext = dataContext
         self.hyperboxSizePerFeature = self.getHyperBoxSizePerFeaure()
+        self.potential_neighbor_radius = np.max(self.hyperboxSizePerFeature)    # search radius for neighbor in density based phase
         self.forget_method = forget_method
+        self.maxNonOverlaps = maxNonOverlaps
 
         # microcluster details
         self.numMicroClusters = 0
@@ -28,30 +31,35 @@ class DyClee:
         return np.array(hb)
 
 
-    ## Phase 1
-    def distanceBasedClustering (self, sample: np.ndarray, label= -1):
+    ## Phase-1
+    def distanceBasedClustering (self, sample: np.ndarray):
         """first phase of dyclee"""
-
         if self.numMicroClusters == 0:  # first sample
             # create a new microcluster
-            muC = MicroCluster(sample, self.hyperboxSizePerFeature, self.forget_method, label)
+            muC = MicroCluster(sample, self.hyperboxSizePerFeature, self.forget_method)
             self.numMicroClusters += 1
-            self.OList.append(muC)      # append to O-list
-
+            # append to O-list
+            self.OList.append(muC)
         else:
-            reachables = self.getReachableMicroClusters(self.AList, sample) # search in A-list
+            # search in A-list
+            reachables = self.getReachableMicroClusters(self.AList, sample)
             if len(reachables) > 0:
                 closest = self.getClosest(reachables, sample)
                 closest.insertSample(sample)
-            else:   # if not found
-                reachables = self.getReachableMicroClusters(self.OList, sample)     # search in O-list
+            # if not found
+            else:
+                # search in O-list
+                reachables = self.getReachableMicroClusters(self.OList, sample)
                 if len(reachables) > 0:
                     closest = self.getClosest(reachables, sample)
                     closest.insertSample(sample)
-                else:   # if not found
-                    muC = MicroCluster(sample, self.hyperboxSizePerFeature, self.forget_method, label)  # create a new microcluster
+                # if not found
+                else:
+                    # create a new microcluster
+                    muC = MicroCluster(sample, self.hyperboxSizePerFeature, self.forget_method)
                     self.numMicroClusters += 1
-                    self.OList.append(muC)      # append to O-list
+                    # append to O-list
+                    self.OList.append(muC)
 
 
     
@@ -80,8 +88,9 @@ class DyClee:
     def densityBasedClustering (self):
         """Second phase of dyclee"""
         # get density thresholds
-        self.meanDensity = self.getMeanDensity()
-        self.medianDensity = self.getMedianDensity(0)
+        concatList = self.AList + self.OList
+        self.meanDensity = self.getMeanDensity(concatList)
+        self.medianDensity = self.getMedianDensity(concatList)
 
         # update A and O lists
         self.updateLists()
@@ -93,17 +102,38 @@ class DyClee:
             muC.unsetLabel()
 
         # get dense clusters
-        DMC = self.getDenseMicroClusters()
-        visited = list()
-        cid = 0     # cluster id
-
+        denseMicroClusters = self.getDenseMicroClusters()
+        # the KD Tree for searching
+        # based on infinte norm distance
+        searchTree = KDTree(np.vstack([c.getCenter() for c in self.AList]), p= np.inf)
+        
+        # loop variables
+        seen = list()   # list of already visited micorclsuters
+        cid = 0         # cluster id
         # density based clustering loop
-        for muC in DMC:
-            if muC not in visited:
-                visited.append(muC)
+        for muC in denseMicroClusters:
+            # not already seen
+            if muC not in seen:
+                seen.append(muC)
                 muC.setLabel(cid)
+                neighbors = self.getNeighbors(muC, searchTree, seen)
+                # process the neighborhood
+                while len(neighbors):
+                    _muC = neighbors.pop()
+                    # not already seen
+                    if _muC not in seen:
+                        #_muC can only be dense/semidense
+                        # label for both
+                        seen.append(_muC)
+                        _muC.setLabel(cid)
+                        # add neighborhood only if dense
+                        if self.isDense(_muC):
+                            # add its neighbors also
+                            nextNeighbors = self.getNeighbors(_muC, searchTree, seen)
+                            neighbors = neighbors.union(nextNeighbors)
 
-                # neighbors = muC.getNeighbors() : TODO
+            # increment cid
+            cid += 1
                 
 
 
@@ -150,7 +180,31 @@ class DyClee:
     
     def getDenseMicroClusters (self):
         """Return all dense microclusters"""
+        dense = list()
+        for muC in self.AList:
+            if self.isDense(muC):
+                dense.append(muC)
+        return dense
+
+    
+    def getNeighbors (self, muC: MicroCluster, searchTree: KDTree, alreadySeen: List[MicroCluster]):
+        """Return set of neighbors for a given microcluster"""
+        # get neighbor indices
+        nghIdc = searchTree.query_radius(muC.getCenter().reshape(1, -1), self.potential_neighbor_radius)[0]
+        neighbors = list()
+        # add the microclusters from A-List except itself
+        for idx in nghIdc:
+            if  (    muC != self.AList[idx] and                                     # not itself 
+                    muC.isDirectlyConnected(self.AList[idx], self.maxNonOverlaps)   # directly connected
+                ):
+                neighbors.append(self.AList[idx])
+        neighbors = set(neighbors)
+        neighbors = neighbors - set(alreadySeen)    # exclude already seen microclusters
+        return neighbors
+        
 
     
     
-
+    ## Combined methods
+    def step (self, sample: np.ndarray):
+        """A training step given a sample"""
