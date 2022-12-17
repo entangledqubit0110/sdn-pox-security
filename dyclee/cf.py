@@ -1,4 +1,5 @@
 import numpy as np
+from forget_methods import Decay
 
 class CF:
     """Characteristic feature"""
@@ -11,14 +12,14 @@ class CF:
         self.tl = tl        # float, last object assign time
         self.ts = ts        # float, create time of microcluster
     
-    def update (self, sample: np.ndarray, time, decay_function= None):
+    def update (self, sample: np.ndarray, time, decay_function:Decay= None):
         """Update cf elements from sample"""
         assert isinstance(sample, np.ndarray), "Sample must be in numpy array format"
         
         if decay_function is None:
             decay = 1
         else:
-            decay = decay_function(time, self.tl)
+            decay = decay_function.decay(time, self.tl)
         
         self.n = self.n*decay + 1
         self.LS = self.LS*decay + sample

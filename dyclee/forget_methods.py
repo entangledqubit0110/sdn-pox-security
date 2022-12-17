@@ -1,43 +1,62 @@
+from abc import ABC, abstractmethod
 import math
-def linear_decay (t, tl, tw0):
-    m = 1/tw0
-    if (t - tl) <= tw0:
-        return (1 - m(t - tl))
 
-    else:
-        return 0
+class Decay (ABC):
 
-def trapezoidal_decay (t, tl, tw0, ta):
-    m = 1/tw0
-    if (t - tl) <= ta:
-        return 1
+    @abstractmethod
+    def decay(self, t, t1):
+        pass
+    
 
-    elif (t - tl) > ta and (t - tl) <= tw0:
-        return ((m - t)/(m - ta))
+class LinearDecay (Decay):
+    def __init__(self, tw0):
+        self.tw0 = tw0
 
-    else:
-        return 0
+    def decay (self, t, tl):
+        m = 1/self.tw0
+        if (t - tl) <= self.tw0:
+            return (1 - m(t - tl))
 
-def z_shaped_function (t, tl, tw0, ta):
-    if (t - tl) <= ta:
-        return 1
+        else:
+            return 0
 
-    elif (  (t - tl) > ta
-        and (t - tl) <= (ta + tw0)/2 ):
-        return 1 - 2*((t - ta)/(tw0 - ta))
 
-    elif (  (t - tl) >= (ta + tw0)/2
-        and (t - tl) < tw0):
-        return 2*((t - ta)/(tw0 - ta))
+class TrapezoidalDecay (Decay):
+    def __init__(self, tw0, ta):
+        self.tw0 = tw0
+        self.ta = ta
 
-    else:
-        return 0
+    def decay (self, t, tl):
+        m = 1/self.tw0
+        if (t - tl) <= self.ta:
+            return 1
 
-def exponential_decay (t, tl, decay):
-    return math.exp(-decay * (t - tl))
+        elif (t - tl) > self.ta and (t - tl) <= self.tw0:
+            return ((m - t)/(m - self.ta))
 
-def half_life_decay (t, tl, decay, beta):
-    return math.pow(beta, -decay * (t - tl))
+        else:
+            return 0
 
-def sigmoidal_decay (t, tl, a, c):
-    return 1/(1 + math.exp(-a * (t - c)))
+
+class ExponentialDecay (Decay):
+    def __init__ (self, d):
+        self.d = d
+
+    def decay (self, t, tl):
+        return math.exp(-self.d * (t - tl))
+
+class HalfLifeDecay (Decay):
+    def __init__(self, d, beta):
+        self.d = d
+        self.beta = beta
+
+    def decay (self, t, tl):
+        return math.pow(self.beta, -self.d * (t - tl))
+
+class SigmoidalDecay (Decay):
+    def __init__ (self, a, c):
+        self.a = a
+        self.c = c
+
+    def decay (self, t, tl):
+        return 1/(1 + math.exp(-self.a * (t - self.c)))
